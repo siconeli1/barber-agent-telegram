@@ -1,0 +1,716 @@
+{
+  "name": "Barber Agent - Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -720,
+        -16
+      ],
+      "id": "6ed7beea-b822-4f49-9599-a909bc28c7bc",
+      "name": "Telegram Trigger",
+      "webhookId": "937c9ba1-81e5-494f-b405-014662bb3c49",
+      "credentials": {
+        "telegramApi": {
+          "id": "zUbuRXOaaFGRF0Xn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Telegram Trigger').item.json.message.text }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "=Atendente virtual da Siconeli Barbearia no Telegram (demonstração).\nAgora: {{ $now.setZone('America/Sao_Paulo').setLocale('pt-BR').toFormat(\"cccc, dd/MM/yyyy HH:mm\") }}\nCalendário (use SEMPRE esta tabela para converter dias da semana em datas, nunca calcule): {{ Array.from({length: 14}, (_, i) => $now.setZone('America/Sao_Paulo').plus({days: i}).setLocale('pt-BR').toFormat(\"ccc dd/MM = yyyy-MM-dd\")).join(' | ') }}\nCliente: {{ $('Buscar cliente').item.json.nome }} (telefone já verificado; nunca peça).\n\nServiços (id: nome, duração, preço): corte-de-cabelo: Corte de cabelo, 30min, R$45 | barba: Barba, 30min, R$35 | cabelo-barba: Cabelo + barba, 60min, R$75\nFuncionamento: seg-qui 9h-19h, sex 9h-20h, sáb 8h-16h, dom fechado. Até 30 dias de antecedência.\n\nRegras:\n1. Nunca invente horários: só cite os que listar_horarios_livres devolveu NESTA mensagem. Nunca reaproveite uma lista de mensagens anteriores: a agenda muda o tempo todo.\n2. Converta datas pelo Calendário acima. Se a data ou o serviço não estiverem claros, pergunte.\n3. Se o cliente pediu um horário específico e ele está na lista, vá direto ao resumo (regra 5). Se não está, diga isso e mostre as opções do dia.\n4. Ao mostrar opções, mostre TODOS os horários devolvidos, com uma frase curta antes, neste formato:\nPara terça-feira, 03/11, tenho estes horários de barba:\nManhã: 09:00, 09:30\nTarde: 12:00, 12:30\nQual prefere?\n(Manhã antes das 12h; período vazio = \"sem horários\"; se pediram um período, mostre só ele.)\n5. Resumo antes de agendar, neste estilo:\nBarba na terça-feira, 03/11, às 10:00, por R$ 35. Posso confirmar?\nSó chame criar_agendamento depois do \"sim\", em outra mensagem.\n6. Se criar_agendamento der erro: diga que o horário acabou de ser ocupado, chame listar_horarios_livres DE NOVO e mostre as opções atualizadas.\n7. Erro ou lista vazia em listar_horarios_livres: explique em uma frase e sugira outro dia.\n8. Cancelar e remarcar: diga que chega em breve.\n9. Português, cordial e curto, texto simples (sem markdown)."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        240,
+        -16
+      ],
+      "id": "17c0b1a3-4188-45ee-ab8b-09026a095da2",
+      "name": "AI Agent",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        688,
+        496
+      ],
+      "id": "de02582c-2ecc-4210-b8be-56bdfd22a3f7",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "O7d3JB5eSL1XGHHI",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}-v2",
+        "contextWindowLength": 4
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        432,
+        256
+      ],
+      "id": "c580d4e1-7e9f-483d-aada-0e6ee08610cf",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "6a1d2507-c534-49d4-a202-1e976eb9ffc1",
+              "leftValue": "={{ $json.message.contact }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        -480,
+        -16
+      ],
+      "id": "ac0e90e9-0911-426c-962f-704db29df269",
+      "name": "é contato?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "3fdb5dbe-abfe-48be-bd57-90b3c0a3de77",
+              "leftValue": "={{ $json.message.contact.user_id }}",
+              "rightValue": "={{ $json.message.from.id }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        -368,
+        -256
+      ],
+      "id": "564b2e3b-d17f-48b9-b707-fc206e7f3835",
+      "name": "é o próprio usuário?"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "NWqmJh27CepytZ9O",
+          "mode": "list",
+          "cachedResultName": "clientes_telegram",
+          "cachedResultUrl": "/projects/C4b82BUk0rWUz4xP/datatables/NWqmJh27CepytZ9O"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $json.message.chat.id }}",
+            "telefone": "={{ $json.message.contact.phone_number }}",
+            "nome": "=  {{ $json.message.contact.first_name }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "telefone",
+              "displayName": "telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "nome",
+              "displayName": "nome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -208,
+        -400
+      ],
+      "id": "33ce6e64-6c9f-46fd-b7b3-922802a63629",
+      "name": "salvar cliente"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=Pronto, {{ $('Telegram Trigger').item.json.message.contact.first_name }}! Agora é só me dizer o serviço e o dia que você quer.",
+        "replyMarkup": "replyKeyboardRemove",
+        "replyKeyboardRemove": {},
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        16,
+        -400
+      ],
+      "id": "ffbbd5a5-501f-4f38-af6d-e37c848ccad8",
+      "name": "contato salvo",
+      "webhookId": "add4fb9b-ca1e-4d5d-907e-4c3d6bc064f3",
+      "credentials": {
+        "telegramApi": {
+          "id": "zUbuRXOaaFGRF0Xn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Por favor, use o botão \"Compartilhar meu contato\", que envia o seu próprio número.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        16,
+        -240
+      ],
+      "id": "2d1ad3ab-1521-4386-8b8b-9c2ab61a826a",
+      "name": "usar o botão",
+      "webhookId": "e008d20a-c601-4798-890e-aa24f0003552",
+      "credentials": {
+        "telegramApi": {
+          "id": "zUbuRXOaaFGRF0Xn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        480,
+        -272
+      ],
+      "id": "1426222e-d6ad-41b3-aac9-74cd0fecdafe",
+      "name": "responder cliente",
+      "webhookId": "4ee39a5a-ed4e-4510-8194-46f27a46eb33",
+      "credentials": {
+        "telegramApi": {
+          "id": "zUbuRXOaaFGRF0Xn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Horários livres de um serviço numa data. Use antes de citar qualquer horário. Retorna \"horarios\" (lista HH:MM) ou \"erro\".",
+        "url": "https://siconeli-barbearia.vercel.app/api/horarios",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "data",
+              "value": "={{ $fromAI('data', 'Data da consulta no formato AAAA-MM-DD', 'string') }}"
+            },
+            {
+              "name": "servico_id",
+              "value": "={{ $fromAI('servico_id', 'Id do serviço: corte-de-cabelo, barba ou cabelo-barba', 'string') }}"
+            },
+            {
+              "name": "formato",
+              "value": "compacto"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        592,
+        240
+      ],
+      "id": "1a3cca6e-d52a-4273-86ec-06ec9e3b7fb1",
+      "name": "listar_horarios_livres"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Olá! Sou o atendente da Siconeli Barbearia. Para consultar e agendar horários, toque no botão abaixo para compartilhar seu contato.",
+        "replyMarkup": "replyKeyboard",
+        "replyKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "📱 Compartilhar meu contato",
+                    "additionalFields": {
+                      "request_contact": true
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "replyKeyboardOptions": {
+          "resize_keyboard": true,
+          "one_time_keyboard": true
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -144,
+        288
+      ],
+      "id": "c9178f25-f4c1-4452-ac33-6ac05a2a2d5d",
+      "name": "pedir contato",
+      "webhookId": "7114c9b5-c447-4254-9d0b-0db6a1735305",
+      "credentials": {
+        "telegramApi": {
+          "id": "zUbuRXOaaFGRF0Xn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "2aaa3989-80f6-4339-bbee-5b690bc658a3",
+              "leftValue": "={{ $json.telefone }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        -80,
+        0
+      ],
+      "id": "92658997-dc5c-4eb0-8574-38c238e590ea",
+      "name": "tem telefone?"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Grava o agendamento. Só use depois do \"sim\" do cliente ao seu resumo. Retorna \"ok\" ou \"erro\".",
+        "method": "POST",
+        "url": "https://siconeli-barbearia.vercel.app/api/reservar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"nome\": \"{{ $('Buscar cliente').item.json.nome }}\",\n  \"telefone\": \"{{ $('Buscar cliente').item.json.telefone }}\",\n  \"data\": \"{{ $fromAI('data', 'Data do agendamento no formato AAAA-MM-DD', 'string') }}\",\n  \"hora_inicio\": \"{{ $fromAI('hora_inicio', 'Horário escolhido no formato HH:MM, que veio de listar_horarios_livres', 'string') }}\",\n  \"service_ids\": [\"{{ $fromAI('servico_id', 'Id do serviço: corte-de-cabelo, barba ou cabelo-barba', 'string') }}\"],\n  \"barbeiro_id\": \"qualquer\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        784,
+        240
+      ],
+      "id": "3c93d076-0e23-43e8-b451-82c942e315ed",
+      "name": "criar_agendamento",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tl0dNnsXJxbWxeis",
+          "name": "Siconeli - chave do agente"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "NWqmJh27CepytZ9O",
+          "mode": "list",
+          "cachedResultName": "clientes_telegram",
+          "cachedResultUrl": "/projects/C4b82BUk0rWUz4xP/datatables/NWqmJh27CepytZ9O"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $json.message.chat.id }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -272,
+        0
+      ],
+      "id": "2279ae7c-9902-4f1c-8e60-35fa62adb35a",
+      "name": "Buscar cliente",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Estou com uma instabilidade agora. Tente de novo em alguns minutos ou agende pelo site: https://siconeli-barbearia.vercel.app",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "460d3a31-abec-418a-9475-bfd667449ce5",
+      "name": "avisar erro",
+      "webhookId": "c5951fb8-df61-46d3-9235-eb34bf0c697f",
+      "credentials": {
+        "telegramApi": {
+          "id": "zUbuRXOaaFGRF0Xn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {
+          "maxTokensToSample": 800,
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        112,
+        256
+      ],
+      "id": "c377e537-1661-4713-8af7-560eef70513a",
+      "name": "gpt-oss-120b",
+      "credentials": {
+        "groqApi": {
+          "id": "FW5lV888GBK3qTCK",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {
+          "maxTokensToSample": 800,
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        288,
+        256
+      ],
+      "id": "7414e4db-60a5-4b3b-8163-f2a8f1b7e65e",
+      "name": "gpt-oss-20b",
+      "credentials": {
+        "groqApi": {
+          "id": "FW5lV888GBK3qTCK",
+          "name": "Groq account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "é contato?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "responder cliente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "avisar erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "é contato?": {
+      "main": [
+        [
+          {
+            "node": "é o próprio usuário?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "é o próprio usuário?": {
+      "main": [
+        [
+          {
+            "node": "salvar cliente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "usar o botão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "salvar cliente": {
+      "main": [
+        [
+          {
+            "node": "contato salvo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "listar_horarios_livres": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tem telefone?": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "pedir contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "criar_agendamento": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar cliente": {
+      "main": [
+        [
+          {
+            "node": "tem telefone?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-oss-120b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-oss-20b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f281df5d-17fd-49da-a187-805e508cab9a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "940b3c6f5ebdd04f7e74654b335207b87959d608290b57aeaca746e64cb34f8c"
+  },
+  "nodeGroups": [],
+  "id": "mpWa8megHvnNiVBW",
+  "tags": []
+}
