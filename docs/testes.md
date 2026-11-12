@@ -2,7 +2,14 @@
 
 Projeto de demonstração, sem clientes reais. Todos os agendamentos abaixo são de teste.
 
-Ambiente: n8n self-hosted (Docker, Oracle Cloud) · API Next.js na Vercel + Supabase. Testes 1–33 com Groq `gpt-oss-120b` (fallback `gpt-oss-20b`); testes 34–37 com Cerebras `qwen-3.8-27b` (fallback Groq `gpt-oss-120b`). A tabela de infraestrutura no fim explica a troca.
+Ambiente: n8n self-hosted (Docker, Oracle Cloud) · API Next.js na Vercel + Supabase · Simple Memory com janela de 4 mensagens.
+
+| Testes | Modelo principal | Reserva |
+|---|---|---|
+| 1–33 | Groq `gpt-oss-120b` | Groq `gpt-oss-20b` (configuração da época) |
+| 34 em diante | Cerebras `qwen-3.8-27b` | Groq `gpt-oss-120b` (configuração atual) |
+
+A tabela de infraestrutura, no fim, explica a troca.
 
 Legenda: ✅ passou · ⚠️ passou com ressalva · ❌ falhou (com a correção aplicada)
 
@@ -53,7 +60,7 @@ Legenda: ✅ passou · ⚠️ passou com ressalva · ❌ falhou (com a correçã
 | Achado | Impacto | Decisão |
 |---|---|---|
 | Gemini free tier: 20 requisições/dia por modelo | Bot parou no meio dos testes | Trocado por Groq |
-| Groq free tier: 8.000 tokens/minuto por modelo | Primeiro agendamento já estourava (8.961 tokens) | `?formato=compacto` nas APIs, memória de 2 mensagens e prompt menor: ~3,4k tokens por mensagem |
+| Groq free tier: 8.000 tokens/minuto por modelo | Primeiro agendamento já estourava (8.961 tokens) | `?formato=compacto` nas APIs e prompt menor: ~3,4k tokens por mensagem |
 | Remarcar faz 4 chamadas ao modelo (~8,9k tokens) | `gpt-oss-120b` falha por TPM | Fallback `gpt-oss-20b` assume sem o cliente perceber |
 | Uma ação de escrita faz 3 chamadas de ~2,6k tokens | Mensagens seguidas esgotavam a cota do principal **e** da reserva (mesma família, mesmo limite) | Principal e reserva em provedores diferentes |
 | Qwen no Groq: 7.000 tokens/minuto | Pior que o gpt-oss | Descartado |

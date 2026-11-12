@@ -85,9 +85,7 @@ A pasta [`workflow/historico/`](workflow/historico/) guarda três exportações 
 |---|---|
 | `2026-10-30.json` | Só agendar: cadastro pelo contato, `listar_horarios_livres` e `criar_agendamento` no Groq, calendário de 14 dias |
 | `2026-11-05.json` | Cancelar e remarcar, regex contra o vazamento do gpt-oss, `tem texto?`, regras de escopo e de "hoje/amanhã" |
-| `2026-11-11.json` | Cerebras + Qwen como principal, Groq como reserva, calendário de 31 dias, regra de confirmação prioritária, respostas compactas |
-
-A versão atual é [`workflow/barber-agent-telegram.json`](workflow/barber-agent-telegram.json).
+| Atual: [`workflow/barber-agent-telegram.json`](workflow/barber-agent-telegram.json) | Cerebras + Qwen como principal, Groq como reserva, calendário de 31 dias, regra de confirmação prioritária, respostas compactas |
 
 ## Testes
 
@@ -97,6 +95,7 @@ Os casos incluem condição de corrida com o site, datas fora da janela, domingo
 
 ## Limitações conhecidas
 
+- **No site, o telefone é a única identificação do cliente.** O bot verifica o número pelo contato do Telegram, mas a API do sistema de agendamentos não verifica: `GET /api/meus-agendamentos?telefone=…` lista os agendamentos de qualquer número informado, e `POST /api/cancelar` cancela com o id e o mesmo telefone. Ou seja, quem souber o número de alguém consegue ver e cancelar os horários dessa pessoa pelo site. Isso vem do desenho original do sistema, que dispensa login, e é aceitável numa demonstração. Em produção, o certo seria confirmar o número com um código enviado por SMS ou WhatsApp antes de mostrar os agendamentos.
 - **A confirmação é garantida pelo prompt, não pelo código.** Num teste, o modelo criou um horário no remarcar antes de pedir confirmação. Corrigi com uma regra prioritária, mas um LLM pode voltar a falhar. A solução robusta está nas melhorias futuras.
 - **Planos gratuitos.** O Cerebras roda com créditos gratuitos e limite de gasto. O Groq, usado como reserva, tem limite de tokens por minuto. Em uso real, seria preciso um plano pago.
 - **A mensagem de erro não reflete o estado real.** Se a resposta falhar depois de uma ação já concluída, o bot diz "Estou com uma instabilidade" mesmo com o agendamento feito, e o cliente pode tentar de novo e duplicar.
@@ -129,6 +128,6 @@ Os casos incluem condição de corrida com o site, datas fora da janela, domingo
 ## Segurança
 
 - Nenhuma chave ou token está no repositório: as credenciais ficam no n8n, e o JSON exportado só tem as referências.
-- O agente só consulta e cancela agendamentos do telefone verificado pelo Telegram.
+- O agente só consulta e cancela agendamentos do telefone verificado pelo Telegram. O site não tem essa verificação (veja as limitações).
 - O preço e a disponibilidade são validados no servidor e não podem ser alterados pela conversa.
 - Todos os dados de teste são fictícios.
