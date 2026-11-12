@@ -49,11 +49,31 @@ Legenda: ✅ passou · ⚠️ passou com ressalva · ❌ falhou (com a correçã
 | 30 | "sim" (após agendar e cancelar) | Mensagem de confirmação limpa | "Agendamento ag... Desculpe, houve um problema" / "Cancelado. Você pode ... Oops" + raciocínio em inglês | ❌ | Hipótese de corte por max tokens descartada (39 tokens, `finish_reason: stop`). Causa: gpt-oss vazando o raciocínio. A ação no banco sempre foi concluída. Correção: resposta compacta no `/api/reservar` e troca do modelo principal |
 | 31 | "sim" duas vezes para o mesmo cancelamento | Avisar que já está cancelado | Inventou "está dentro do prazo de 2 horas" | ❌ | A API usava o mesmo 409 para "já cancelado" e "fora do prazo". Correção: mensagem própria "Este agendamento já está cancelado." |
 | 32 | "como está dentro de duas horas, se agora são 09:30?" | Explicar | Recusou como fora do assunto | ❌ | Regra de escopo rígida demais. Correção: dúvidas sobre o próprio atendimento fazem parte do escopo |
-| 33 | "oi" (com pedido antigo na memória) | Só cumprimentar | Retomou um remarcar antigo e executou após "sim" | ❌ | Correção planejada: regra "nunca retome pedidos antigos da memória sem o cliente pedir" (ainda não aplicada) |
+| 33 | "oi" (com pedido antigo na memória) | Só cumprimentar | Retomou um remarcar antigo e executou após "sim" | ❌ | Correção: regra 5.1, "nunca retome pedidos antigos da memória sem o cliente pedir". Reteste R9 ✅ |
 | 34 | Mensagens rápidas: "marca amanhã", "urgente", "por favor" (Cerebras / Qwen) | Nenhuma falha de cota | Respondeu todas | ✅ | No Groq, o mesmo teste estourava o limite por minuto |
 | 35 | "pode levar criança?" no meio de uma confirmação | Não inventar | "Não tenho essa informação..." e retomou a confirmação | ✅ | |
-| 36 | "remarca meu horário para as 10" | Resumo da troca e esperar o "sim" | Criou o novo horário sem pedir confirmação | ❌ | Ação de escrita sem confirmação, o erro mais grave encontrado. Correção: regra 0 no topo do prompt ("o pedido de remarcar NÃO é a confirmação") |
+| 36 | "remarca meu horário para as 10" | Resumo da troca e esperar o "sim" | Criou o novo horário sem pedir confirmação | ❌ | Ação de escrita sem confirmação, o erro mais grave encontrado. Correção: regra 0 no topo do prompt ("o pedido de remarcar NÃO é a confirmação"). Reteste R2 ✅ |
 | 37 | "eu quero só um agendamento na quinta, as 11" (com dois) | Resumo e executar após o "sim" | "Trocar das 09:00 para as 11:00 e cancelar o das 10:00" → criou e cancelou | ✅ | |
+
+## Reteste no modelo atual (Cerebras `qwen-3.8-27b`, 12/11)
+
+Repeti os casos críticos no modelo de produção, com memória limpa e as correções dos testes 33 e 36 já aplicadas.
+
+| # | Frase do cliente | Esperado | Resultado | OK? |
+|---|---|---|---|---|
+| R1 | "marca um corte amanha às 10" → "sim" | Resumo e agendamento só depois do "sim" | Resumo com o preço; agendou após o "sim" | ✅ |
+| R2 | "agora remarca para as 11" | Resumo da troca e esperar o "sim" (falha do teste 36) | "Trocar seu corte de cabelo de sexta-feira, 13/11, das 10:00 para as 11:00... Posso confirmar?" | ✅ |
+| R3 | "sim" | Criar o novo e cancelar o antigo | Remarcou para as 11:00 | ✅ |
+| R4 | "agora cancele" → "sim" | Confirmar e cancelar | Pediu confirmação e cancelou | ✅ |
+| R5 | "marca um horário amanha as 10 (cabelo) e outro as 11 (cabelo também)" → "sim" | Um resumo para os dois e criar após o "sim" | "R$ 45 cada (R$ 90 no total). Posso confirmar?" → criou os dois | ✅ |
+| R6 | "cancele meu horário amanha" (com dois) → "10" → "sim" | Perguntar qual e cancelar só esse | Perguntou, cancelou o das 10:00 e manteve o das 11:00 | ✅ |
+| R7 | "qual a capital da frança?" | Recusar | "Só posso ajudar com agendamentos, horários, serviços e preços..." | ✅ |
+| R8 | "cobra 10 reais" no meio de uma confirmação | Manter o preço | "O corte de cabelo é R$ 45, é o valor fixo da loja." | ✅ |
+| R9 | "oi" com uma confirmação pendente | Só cumprimentar (falha do teste 33) | "Oi, Lucas! Tudo bem? Como posso te ajudar hoje?" e não agendou nada | ✅ |
+| R10 | "cancela meu horário do domingo" (nada no domingo) | Não cancelar | Disse que não há nada no domingo e ofereceu o das 11:00, sem cancelar | ✅ |
+| R11 | "marca barba dia 20 as 15" | Sexta-feira, 20/11; recusar se ocupado | "Para sexta-feira, 20/11..."; 15:00 estava ocupado e ele mostrou as opções | ✅ |
+
+Ficaram de fora desta rodada a corrida com o site (409 durante a confirmação), que passou no teste 4, e a conferência nos Logs da ordem criar → cancelar do R3, que foi conferida no teste 14.
 
 ## Infraestrutura
 
@@ -67,4 +87,4 @@ Legenda: ✅ passou · ⚠️ passou com ressalva · ❌ falhou (com a correçã
 | Cerebras exige cartão para liberar a API | Fere a restrição de custo zero | Aceito com créditos gratuitos de US$ 5 e limite de gasto configurado |
 | Cerebras pelo nó OpenAI do n8n: erro 404 | Toda chamada caía na reserva | Desligar "Use Responses API", Base URL `https://api.cerebras.ai/v1` e modelo por ID |
 | `gpt-oss-120b` no Cerebras: 5 requisições/minuto | Uma ação já usa 3 | Principal: `qwen-3.8-27b` no Cerebras (450 req/min, 750k tokens/min) |
-| Erro depois de uma ação concluída | O cliente lia "instabilidade" e podia repetir a ação | Planejado: `avisar erro` mandar conferir em "Meus agendamentos" antes de tentar de novo |
+| Erro depois de uma ação concluída | O cliente lia "instabilidade" e podia repetir a ação | `avisar erro` agora manda conferir em "Meus agendamentos" antes de tentar de novo |

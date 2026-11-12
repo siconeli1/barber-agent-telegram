@@ -4,7 +4,7 @@ Bot do Telegram que **agenda, cancela e remarca** horários de barbearia em ling
 
 > **Projeto de demonstração, sem clientes.** A barbearia é fictícia e todos os agendamentos são de teste.
 
-<!-- Coloque aqui o GIF da conversa: docs/demo.gif -->
+![Conversa com o bot: agendar, conferir no site, remarcar e cancelar](docs/demo.gif)
 
 ## O que ele faz
 
@@ -76,38 +76,37 @@ flowchart LR
 6. **Mensagens sem texto barradas no fluxo, não no LLM.** Figurinhas e áudios caem num IF antes do agente: custo zero de tokens e nenhuma chance de erro.
 7. **Principal e reserva em provedores diferentes.** No plano gratuito, cada provedor limita os tokens por minuto, e uma ação de agendamento faz 3 chamadas ao modelo. Com principal e reserva no mesmo provedor, as duas cotas acabavam juntas.
 8. **Escolha do modelo com dados de produção.** O `gpt-oss-120b` às vezes vazava o raciocínio interno na resposta final ("Agendamento ag…", "Oops…"). Investiguei a hipótese de corte por limite de tokens e os dados a descartaram (`finish_reason: stop`, 39 tokens). Depois de trocar de provedor, os limites da conta (5 req/min para o gpt-oss contra 450 para o Qwen) decidiram o modelo principal.
+9. **O erro não esconde o estado real.** Se a resposta falhar depois de uma ação já concluída, o bot não diz "instabilidade": manda o cliente conferir em "Meus agendamentos" antes de tentar de novo, para evitar agendamentos duplicados.
 
 ## Evolução do workflow
 
-A pasta [`workflow/historico/`](workflow/historico/) guarda três exportações com data, que mostram o projeto crescendo:
+A pasta [`workflow/historico/`](workflow/historico/) guarda as exportações com data, que mostram o projeto crescendo:
 
 | Versão | O que tinha |
 |---|---|
 | `2026-10-30.json` | Só agendar: cadastro pelo contato, `listar_horarios_livres` e `criar_agendamento` no Groq, calendário de 14 dias |
 | `2026-11-05.json` | Cancelar e remarcar, regex contra o vazamento do gpt-oss, `tem texto?`, regras de escopo e de "hoje/amanhã" |
-| Atual: [`workflow/barber-agent-telegram.json`](workflow/barber-agent-telegram.json) | Cerebras + Qwen como principal, Groq como reserva, calendário de 31 dias, regra de confirmação prioritária, respostas compactas |
+| `2026-11-11.json` | Cerebras + Qwen como principal, Groq como reserva, calendário de 31 dias, regra de confirmação prioritária, respostas compactas |
+| Atual: [`workflow/barber-agent-telegram.json`](workflow/barber-agent-telegram.json) | Regra para não retomar pedidos antigos da memória, mensagem de erro que manda conferir no site, nó do Gemini sem uso removido |
 
 ## Testes
 
-37 conversas documentadas, com o esperado, o resultado e a correção de cada falha: **[docs/testes.md](docs/testes.md)**.
+37 conversas documentadas, com o esperado, o resultado e a correção de cada falha, mais 11 retestes dos casos críticos no modelo atual (todos ✅): **[docs/testes.md](docs/testes.md)**.
 
 Os casos incluem condição de corrida com o site, datas fora da janela, domingo fechado, horário que já passou, ambiguidade, remarcar para um horário ocupado, contato de outra pessoa, manipulação de preço, perguntas fora do assunto, figurinhas e mensagens enviadas em sequência rápida.
 
 ## Limitações conhecidas
 
 - **No site, o telefone é a única identificação do cliente.** O bot verifica o número pelo contato do Telegram, mas a API do sistema de agendamentos não verifica: `GET /api/meus-agendamentos?telefone=…` lista os agendamentos de qualquer número informado, e `POST /api/cancelar` cancela com o id e o mesmo telefone. Ou seja, quem souber o número de alguém consegue ver e cancelar os horários dessa pessoa pelo site. Isso vem do desenho original do sistema, que dispensa login, e é aceitável numa demonstração. Em produção, o certo seria confirmar o número com um código enviado por SMS ou WhatsApp antes de mostrar os agendamentos.
-- **A confirmação é garantida pelo prompt, não pelo código.** Num teste, o modelo criou um horário no remarcar antes de pedir confirmação. Corrigi com uma regra prioritária, mas um LLM pode voltar a falhar. A solução robusta está nas melhorias futuras.
+- **A confirmação é garantida pelo prompt, não pelo código.** Num teste, o modelo criou um horário no remarcar antes de pedir confirmação. Corrigi com uma regra prioritária e o reteste passou, mas um LLM pode voltar a falhar. A solução robusta está nas melhorias futuras.
 - **Planos gratuitos.** O Cerebras roda com créditos gratuitos e limite de gasto. O Groq, usado como reserva, tem limite de tokens por minuto. Em uso real, seria preciso um plano pago.
-- **A mensagem de erro não reflete o estado real.** Se a resposta falhar depois de uma ação já concluída, o bot diz "Estou com uma instabilidade" mesmo com o agendamento feito, e o cliente pode tentar de novo e duplicar.
-- **Memória curta.** A janela de 4 mensagens economiza tokens, mas o bot esquece o contexto mais antigo. Num teste, a memória também fez o bot retomar um pedido antigo depois de um simples "oi".
+- **Memória curta.** A janela de 4 mensagens economiza tokens, mas o bot esquece o contexto mais antigo.
 - **Só texto e só português.** Áudio, imagem e outros idiomas não são tratados.
 - **Um barbeiro.** A demonstração usa um único profissional. A API aceita vários, mas o agente não pergunta a preferência.
 
 ## Melhorias futuras
 
 - **Confirmação garantida no fluxo:** guardar a ação pendente numa data table e só executá-la quando a mensagem seguinte for uma confirmação.
-- Mensagem de erro que manda o cliente conferir em "Meus agendamentos" antes de tentar de novo.
-- Regra para o bot nunca retomar pedidos antigos da memória sem o cliente pedir.
 - Link de conferência adicionado pelo fluxo, e não pelo modelo, sempre que houver um agendamento criado.
 - Lembrete automático 2 horas antes do horário.
 - Transcrição de áudio (Whisper) para aceitar mensagens de voz.

@@ -1,0 +1,866 @@
+{
+  "name": "Barber Agent - Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -720,
+        -16
+      ],
+      "id": "6ed7beea-b822-4f49-9599-a909bc28c7bc",
+      "name": "Telegram Trigger",
+      "webhookId": "937c9ba1-81e5-494f-b405-014662bb3c49",
+      "credentials": {
+        "telegramApi": {
+          "id": "zUbuRXOaaFGRF0Xn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Telegram Trigger').item.json.message.text }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "=Atendente virtual da Siconeli Barbearia no Telegram (demonstração).\nAgora: {{ $now.setZone('America/Sao_Paulo').setLocale('pt-BR').toFormat(\"cccc, dd/MM/yyyy HH:mm\") }}\nCalendário (use SEMPRE esta tabela; nunca calcule datas nem dias da semana): {{ Array.from({length: 31}, (_, i) => $now.setZone('America/Sao_Paulo').plus({days: i}).setLocale('pt-BR').toFormat(\"ccc dd/MM\")).join(', ') }}\nCliente: {{ $('Buscar cliente').item.json.nome }} (telefone já verificado; nunca peça).\n\nServiços (id: nome, duração, preço): corte-de-cabelo: Corte de cabelo, 30min, R$45 | barba: Barba, 30min, R$35 | cabelo-barba: Cabelo + barba, 60min, R$75\nFuncionamento: seg-qui 9h-19h, sex 9h-20h, sáb 8h-16h, dom fechado. Até 30 dias de antecedência. Cancelamento até 2h antes.\n\nRegras gerais:\n0.0. REGRA MAIS IMPORTANTE: nunca chame criar_agendamento nem cancelar_agendamento sem antes mostrar um resumo e receber a confirmação do cliente numa mensagem seguinte. Isso vale também para remarcar: o pedido de remarcar NÃO é a confirmação.\n1. Nunca invente horários nem agendamentos: só cite o que as ferramentas devolveram NESTA mensagem. Nunca reaproveite listas de mensagens anteriores.\n2. Converta datas pelo Calendário acima. Só use \"hoje\" ou \"amanhã\" se a data for exatamente a de hoje ou a de amanhã no Calendário. Se a data ou o serviço não estiverem claros, pergunte.\n3. Nunca mostre ids ao cliente. Nunca peça o telefone. Se uma ferramenta der erro, diga que houve um problema e peça para tentar de novo.\n4. Português, cordial e curto, texto simples (sem markdown).\n5. Você só trata do atendimento da Siconeli Barbearia: agendamentos do cliente, horários, serviços, preços e regras (inclusive dúvidas sobre por que algo não foi possível). Para assuntos sem relação com a barbearia, diga educadamente que só pode ajudar com isso, sem responder.\n\nAgendar:\n6. Se o cliente pediu um horário específico e ele está na lista de listar_horarios_livres, vá direto ao resumo. Se não está, diga isso e mostre as opções do dia.\n7. Se o horário pedido já passou hoje, diga isso antes de mostrar as opções. Ao mostrar opções, mostre TODOS os horários devolvidos, com uma frase curta antes, neste formato:\nPara terça-feira, 03/11, tenho estes horários de barba:\nManhã: 09:00, 09:30\nTarde: 12:00, 12:30\nQual prefere?\n(Manhã antes das 12h; período vazio = \"sem horários\"; se pediram um período, mostre só ele.)\n8. Resumo antes de agendar, neste estilo:\nBarba na terça-feira, 03/11, às 10:00, por R$ 35. Posso confirmar?\nSó chame criar_agendamento depois de uma confirmação (\"sim\", \"pode\", \"ok\" ou 👍), em outra mensagem. Depois de agendar ou remarcar com sucesso, termine com: \"Você pode conferir em https://siconeli-barbearia.vercel.app/meus-agendamentos usando o mesmo número do Telegram.\"\n9. Se criar_agendamento der erro: diga que o horário acabou de ser ocupado, chame listar_horarios_livres DE NOVO e mostre as opções atualizadas.\n10. Erro ou lista vazia em listar_horarios_livres: explique em uma frase e sugira outro dia.\n\nConsultar e cancelar:\n11. SEMPRE chame listar_meus_agendamentos antes de falar sobre os agendamentos do cliente, mesmo que uma mensagem anterior diga que não há nenhum ou que deu erro. A memória da conversa pode estar desatualizada.\n12. Para cancelar: identifique o agendamento pela data e hora. Se houver mais de um possível, mostre-os e pergunte qual. Se não houver nenhum, diga isso. Peça confirmação antes de cancelar.\n13. Se pode_cancelar for false: explique que cancelamentos são até 2h antes e não chame cancelar_agendamento.\n14. Depois da confirmação: chame listar_meus_agendamentos de novo e então cancelar_agendamento com o id daquele agendamento. Confirme o cancelamento.\n\nRemarcar:\n15. Primeiro identifique o agendamento atual (regra 12) e chame listar_horarios_livres para o novo dia. Só peça confirmação se o novo horário estiver livre. Se o cliente já tiver um agendamento nesse horário, avise isso. O resumo deve deixar claro que é uma troca, neste estilo: Trocar seu corte de sexta-feira, 06/11, às 10:00 para as 14:00, por R$ 45. Posso confirmar?\n16. Depois da confirmação: PRIMEIRO criar_agendamento no novo horário. Só se der certo, cancelar_agendamento no antigo. Se criar_agendamento der erro, avise que o horário antigo continua mantido e ofereça outros horários."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        496,
+        -32
+      ],
+      "id": "17c0b1a3-4188-45ee-ab8b-09026a095da2",
+      "name": "AI Agent",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        304,
+        496
+      ],
+      "id": "de02582c-2ecc-4210-b8be-56bdfd22a3f7",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "O7d3JB5eSL1XGHHI",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}-v7",
+        "contextWindowLength": 4
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        608,
+        304
+      ],
+      "id": "c580d4e1-7e9f-483d-aada-0e6ee08610cf",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "6a1d2507-c534-49d4-a202-1e976eb9ffc1",
+              "leftValue": "={{ $json.message.contact }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        -480,
+        -16
+      ],
+      "id": "ac0e90e9-0911-426c-962f-704db29df269",
+      "name": "é contato?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "3fdb5dbe-abfe-48be-bd57-90b3c0a3de77",
+              "leftValue": "={{ $json.message.contact.user_id }}",
+              "rightValue": "={{ $json.message.from.id }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        -368,
+        -256
+      ],
+      "id": "564b2e3b-d17f-48b9-b707-fc206e7f3835",
+      "name": "é o próprio usuário?"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "NWqmJh27CepytZ9O",
+          "mode": "list",
+          "cachedResultName": "clientes_telegram",
+          "cachedResultUrl": "/projects/C4b82BUk0rWUz4xP/datatables/NWqmJh27CepytZ9O"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $json.message.chat.id }}",
+            "telefone": "={{ $json.message.contact.phone_number }}",
+            "nome": "=  {{ $json.message.contact.first_name }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "telefone",
+              "displayName": "telefone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "nome",
+              "displayName": "nome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -208,
+        -400
+      ],
+      "id": "33ce6e64-6c9f-46fd-b7b3-922802a63629",
+      "name": "salvar cliente"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=Pronto, {{ $('Telegram Trigger').item.json.message.contact.first_name }}! Agora é só me dizer o serviço e o dia que você quer.",
+        "replyMarkup": "replyKeyboardRemove",
+        "replyKeyboardRemove": {
+          "remove_keyboard": true
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        16,
+        -400
+      ],
+      "id": "ffbbd5a5-501f-4f38-af6d-e37c848ccad8",
+      "name": "contato salvo",
+      "webhookId": "add4fb9b-ca1e-4d5d-907e-4c3d6bc064f3",
+      "credentials": {
+        "telegramApi": {
+          "id": "zUbuRXOaaFGRF0Xn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Por favor, use o botão \"Compartilhar meu contato\", que envia o seu próprio número.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        16,
+        -240
+      ],
+      "id": "2d1ad3ab-1521-4386-8b8b-9c2ab61a826a",
+      "name": "usar o botão",
+      "webhookId": "e008d20a-c601-4798-890e-aa24f0003552",
+      "credentials": {
+        "telegramApi": {
+          "id": "zUbuRXOaaFGRF0Xn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output.replace(/^[\\s\\S]*final(?=[A-ZÀ-Ú])/, '').trim() }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        736,
+        -336
+      ],
+      "id": "1426222e-d6ad-41b3-aac9-74cd0fecdafe",
+      "name": "responder cliente",
+      "webhookId": "4ee39a5a-ed4e-4510-8194-46f27a46eb33",
+      "credentials": {
+        "telegramApi": {
+          "id": "zUbuRXOaaFGRF0Xn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Horários livres de um serviço numa data. Use antes de citar qualquer horário. Retorna \"horarios\" (lista HH:MM) ou \"erro\".",
+        "url": "https://siconeli-barbearia.vercel.app/api/horarios",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "data",
+              "value": "={{ $fromAI('data', 'Data da consulta no formato AAAA-MM-DD', 'string') }}"
+            },
+            {
+              "name": "servico_id",
+              "value": "={{ $fromAI('servico_id', 'Id do serviço: corte-de-cabelo, barba ou cabelo-barba', 'string') }}"
+            },
+            {
+              "name": "formato",
+              "value": "compacto"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        784,
+        272
+      ],
+      "id": "1a3cca6e-d52a-4273-86ec-06ec9e3b7fb1",
+      "name": "listar_horarios_livres"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Olá! Sou o atendente da Siconeli Barbearia. Para consultar e agendar horários, toque no botão abaixo para compartilhar seu contato.",
+        "replyMarkup": "replyKeyboard",
+        "replyKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "📱 Compartilhar meu contato",
+                    "additionalFields": {
+                      "request_contact": true
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "replyKeyboardOptions": {
+          "resize_keyboard": true,
+          "one_time_keyboard": true
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -144,
+        288
+      ],
+      "id": "c9178f25-f4c1-4452-ac33-6ac05a2a2d5d",
+      "name": "pedir contato",
+      "webhookId": "7114c9b5-c447-4254-9d0b-0db6a1735305",
+      "credentials": {
+        "telegramApi": {
+          "id": "zUbuRXOaaFGRF0Xn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "2aaa3989-80f6-4339-bbee-5b690bc658a3",
+              "leftValue": "={{ $json.telefone }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        -80,
+        0
+      ],
+      "id": "92658997-dc5c-4eb0-8574-38c238e590ea",
+      "name": "tem telefone?"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Grava o agendamento. Só use depois do \"sim\" do cliente ao seu resumo. Retorna \"ok\" ou \"erro\".",
+        "method": "POST",
+        "url": "https://siconeli-barbearia.vercel.app/api/reservar?formato=compacto",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"nome\": \"{{ $('Buscar cliente').item.json.nome }}\",\n  \"telefone\": \"{{ $('Buscar cliente').item.json.telefone }}\",\n  \"data\": \"{{ $fromAI('data', 'Data do agendamento no formato AAAA-MM-DD', 'string') }}\",\n  \"hora_inicio\": \"{{ $fromAI('hora_inicio', 'Horário escolhido no formato HH:MM, que veio de listar_horarios_livres', 'string') }}\",\n  \"service_ids\": [\"{{ $fromAI('servico_id', 'Id do serviço: corte-de-cabelo, barba ou cabelo-barba', 'string') }}\"],\n  \"barbeiro_id\": \"qualquer\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        976,
+        272
+      ],
+      "id": "3c93d076-0e23-43e8-b451-82c942e315ed",
+      "name": "criar_agendamento",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Tl0dNnsXJxbWxeis",
+          "name": "Siconeli - chave do agente"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "NWqmJh27CepytZ9O",
+          "mode": "list",
+          "cachedResultName": "clientes_telegram",
+          "cachedResultUrl": "/projects/C4b82BUk0rWUz4xP/datatables/NWqmJh27CepytZ9O"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $json.message.chat.id }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -272,
+        0
+      ],
+      "id": "2279ae7c-9902-4f1c-8e60-35fa62adb35a",
+      "name": "Buscar cliente",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Estou com uma instabilidade agora. Tente de novo em alguns minutos ou agende pelo site: https://siconeli-barbearia.vercel.app",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        960,
+        0
+      ],
+      "id": "460d3a31-abec-418a-9475-bfd667449ce5",
+      "name": "avisar erro",
+      "webhookId": "c5951fb8-df61-46d3-9235-eb34bf0c697f",
+      "credentials": {
+        "telegramApi": {
+          "id": "zUbuRXOaaFGRF0Xn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {
+          "maxTokensToSample": 800,
+          "temperature": 1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        528,
+        176
+      ],
+      "id": "c377e537-1661-4713-8af7-560eef70513a",
+      "name": "gpt-oss-120b",
+      "credentials": {
+        "groqApi": {
+          "id": "FW5lV888GBK3qTCK",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Retorna os agendamentos futuros do cliente (id, data, hora_inicio, servico, pode_cancelar). Chame SEMPRE que o cliente perguntar sobre os horários dele, quiser cancelar ou remarcar. Nunca responda sobre agendamentos sem chamar esta ferramenta.",
+        "url": "=https://siconeli-barbearia.vercel.app/api/meus-agendamentos?formato=compacto&telefone={{ $json.telefone }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        1008,
+        464
+      ],
+      "id": "bace7c6a-08ee-4354-b991-15cf71339709",
+      "name": "listar_meus_agendamentos"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Cancela um agendamento do cliente pelo id (copiado de listar_meus_agendamentos). Só use depois do \"sim\" do cliente. Retorna \"sucesso\" ou \"erro\".",
+        "method": "POST",
+        "url": "https://siconeli-barbearia.vercel.app/api/cancelar",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"id\": \"{{ $fromAI('agendamento_id', 'Id do agendamento, copiado exatamente de listar_meus_agendamentos', 'string') }}\",\n  \"telefone\": \"{{ $('Buscar cliente').item.json.telefone }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        800,
+        464
+      ],
+      "id": "3be55231-84da-49f0-93b5-1220d3cc0409",
+      "name": "cancelar_agendamento"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "3ca8ebc0-ffda-4f27-ba43-ae6e2b3fa88d",
+              "leftValue": "={{ $('Telegram Trigger').first().json.message.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        176,
+        -16
+      ],
+      "id": "754344c3-95ba-4dc1-98d8-4fec85daf5e5",
+      "name": "tem texto?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Por enquanto eu só entendo mensagens de texto. Me diga o que você precisa 🙂",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        112,
+        288
+      ],
+      "id": "def13ff6-cc33-4fd6-9f0f-2645af1e9825",
+      "name": "só texto",
+      "webhookId": "a8662b69-9927-49f6-9173-a694fc455a47",
+      "credentials": {
+        "telegramApi": {
+          "id": "zUbuRXOaaFGRF0Xn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "qwen-3.8-27b",
+          "mode": "id"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "temperature": 0.6
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        352,
+        176
+      ],
+      "id": "d4ca1a8d-2200-467f-8a5f-e58de6fec488",
+      "name": "cerebras-qwen-3.8-27b",
+      "credentials": {
+        "openAiApi": {
+          "id": "DLTZikSj3Tc1qZy4",
+          "name": "OpenAI account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "é contato?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "responder cliente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "avisar erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "é contato?": {
+      "main": [
+        [
+          {
+            "node": "é o próprio usuário?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "é o próprio usuário?": {
+      "main": [
+        [
+          {
+            "node": "salvar cliente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "usar o botão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "salvar cliente": {
+      "main": [
+        [
+          {
+            "node": "contato salvo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "listar_horarios_livres": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tem telefone?": {
+      "main": [
+        [
+          {
+            "node": "tem texto?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "pedir contato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "criar_agendamento": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar cliente": {
+      "main": [
+        [
+          {
+            "node": "tem telefone?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-oss-120b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "listar_meus_agendamentos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cancelar_agendamento": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tem texto?": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "só texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cerebras-qwen-3.8-27b": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f545f5e0-a843-4196-8a7d-52625e358288",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "940b3c6f5ebdd04f7e74654b335207b87959d608290b57aeaca746e64cb34f8c"
+  },
+  "nodeGroups": [],
+  "id": "mpWa8megHvnNiVBW",
+  "tags": []
+}
