@@ -4,7 +4,9 @@ Bot do Telegram que **agenda, cancela e remarca** horários de barbearia em ling
 
 > **Projeto de demonstração, sem clientes.** A barbearia é fictícia e todos os agendamentos são de teste.
 
-![Conversa com o bot: agendar, conferir no site, remarcar e cancelar](docs/demo.gif)
+![Conversa real com o bot: agendar, remarcar, cancelar e marcar dois horários de uma vez](docs/conversa.png)
+
+Mais conversas, com ambiguidade, pergunta fora do assunto, tentativa de mudar o preço e datas, em [`docs/prints/`](docs/prints/).
 
 ## O que ele faz
 
